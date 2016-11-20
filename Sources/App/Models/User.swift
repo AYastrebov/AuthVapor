@@ -10,7 +10,7 @@ import VaporJWT
 import Hash
 
 struct Authentication {
-    static let AccessTokenSigningKey: Bytes = Array("CHANGE_ME".utf8)
+    static let AccessTokenSigningKey: Bytes = Array("SUPER_SECRET_KEY".utf8)
     static let AccesTokenValidationLength = Date() + (60 * 5) // 5 Minutes later
 }
 
@@ -23,6 +23,11 @@ final class User: BaseModel, Model {
     init(credentials: UsernamePassword) {
         self.username = credentials.username
         self.password = BCrypt.hash(password: credentials.password)
+        super.init()
+    }
+    
+    init(credentials: Auth.AccessToken) {
+        self.accessToken = credentials.string
         super.init()
     }
     
@@ -60,7 +65,7 @@ extension User: Auth.User {
         case let credentials as Identifier: user = try User.find(credentials.id)
             
         case let credentials as Auth.AccessToken:
-            user = try User.query().filter("token", credentials.string).first()
+            user = try User.query().filter("access_token", credentials.string).first()
             
         default:
             throw UnsupportedCredentialsError()

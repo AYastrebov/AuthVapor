@@ -43,7 +43,7 @@ final class AuthController {
     func logout(request: Request) throws -> ResponseRepresentable {
         // Invalidate the current access token
         var user = try request.user()
-        user.accessToken = nil
+        user.accessToken = ""
         try user.save()
         
         // Clear the session
@@ -69,25 +69,5 @@ final class AuthController {
     
     func me(request: Request) throws -> ResponseRepresentable {
         return try JSON(node: request.user().makeNode())
-    }
-}
-
-extension Request {
-    // Helper method to get the current user
-    func user() throws -> User {
-        guard let user = try auth.user() as? User else {
-            throw UnsupportedCredentialsError()
-        }
-        return user
-    }
-    
-    // Base URL returns the hostname, scheme, and port in a URL string form.
-    var baseURL: String {
-        return uri.scheme + "://" + uri.host + (uri.port == nil ? "" : ":\(uri.port!)")
-    }
-    
-    // Exposes the Turnstile subject, as Vapor has a facade on it.
-    var subject: Subject {
-        return storage["subject"] as! Subject
     }
 }

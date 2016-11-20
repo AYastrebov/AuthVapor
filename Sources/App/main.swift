@@ -5,10 +5,11 @@ import Vapor
 import VaporPostgreSQL
 
 let drop = Droplet()
+let auth = AuthMiddleware(user: User.self)
 
 try drop.addProvider(VaporPostgreSQL.Provider)
-drop.addConfigurable(middleware: AuthMiddleware(user: User.self), name: "auth")
-drop.preparations = [User.self]
+drop.middleware.append(auth)
+drop.preparations.append(User.self)
 
 let protect = ProtectMiddleware(error:
     Abort.custom(status: .forbidden, message: "Not authorized.")
@@ -36,6 +37,7 @@ secured.resource("users", userController)
 // auth
 v1.post("register", handler: authController.register)
 v1.post("login", handler: authController.login)
-v1.post("logout", handler: authController.logout)
+secured.post("logout", handler: authController.logout)
+secured.post("validate", handler: authController.validateAccessToken)
 
 drop.run()

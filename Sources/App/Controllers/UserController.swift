@@ -1,5 +1,6 @@
 import Vapor
 import HTTP
+import Turnstile
 import VaporPostgreSQL
 
 final class UserController: ResourceRepresentable {
@@ -39,5 +40,25 @@ final class UserController: ResourceRepresentable {
             modify: update,
             destroy: delete
         )
+    }
+}
+
+extension Request {
+    // Helper method to get the current user
+    func user() throws -> User {
+        guard let user = try auth.user() as? User else {
+            throw UnsupportedCredentialsError()
+        }
+        return user
+    }
+    
+    // Base URL returns the hostname, scheme, and port in a URL string form.
+    var baseURL: String {
+        return uri.scheme + "://" + uri.host + (uri.port == nil ? "" : ":\(uri.port!)")
+    }
+    
+    // Exposes the Turnstile subject, as Vapor has a facade on it.
+    var subject: Subject {
+        return storage["subject"] as! Subject
     }
 }
