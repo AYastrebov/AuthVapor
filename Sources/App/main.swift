@@ -33,6 +33,7 @@ v1.get {
 
 // /users
 secured.resource("users", userController)
+secured.grouped("users").get("me", handler: userController.me)
 
 // auth
 v1.post("register", handler: authController.register)

@@ -43,7 +43,7 @@ final class AuthController {
     func logout(request: Request) throws -> ResponseRepresentable {
         // Invalidate the current access token
         var user = try request.user()
-        user.accessToken = ""
+        user.accessToken = nil
         try user.save()
         
         // Clear the session
@@ -63,11 +63,5 @@ final class AuthController {
         }
         
         return try JSON(node: ["success": true])
-    }
-    
-    // MARK: Custom Endpoints
-    
-    func me(request: Request) throws -> ResponseRepresentable {
-        return try JSON(node: request.user().makeNode())
     }
 }

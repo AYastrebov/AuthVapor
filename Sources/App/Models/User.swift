@@ -146,7 +146,7 @@ extension User: Preparation {
             prepare(model: user)
             user.string("username")
             user.string("password")
-            user.string("access_token")
+            user.string("access_token", optional: true)
         }
     }
     
