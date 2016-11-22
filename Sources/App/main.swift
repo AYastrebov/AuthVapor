@@ -38,6 +38,7 @@ secured.grouped("users").get("me", handler: userController.me)
 // auth
 v1.post("register", handler: authController.register)
 v1.post("login", handler: authController.login)
+v1.post("refresh", handler: authController.refresh)
 secured.post("logout", handler: authController.logout)
 secured.post("validate", handler: authController.validateAccessToken)
 

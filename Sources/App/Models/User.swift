@@ -9,11 +9,16 @@ import TurnstileCrypto
 import VaporJWT
 import Hash
 
+struct Expiration {
+    static let AccesTokenExpiration: TimeInterval = (60 * 5) // 15 Minutes later
+    static let RefreshTokenExpiration: TimeInterval = (60 * 60 * 24 * 30) // 30 Days Later
+}
+
 struct Authentication {
     static let AccessTokenSigningKey: Bytes = Array("ACCESS_TOKEN_SECRET".utf8)
-    static let AccesTokenValidationLength = Date() + (60 * 15) // 15 Minutes later
+    static let AccesTokenValidationLength = Date() + Expiration.AccesTokenExpiration // 15 Minutes later
     static let RefreshTokenSigningKey: Bytes = Array("REFRESH_TOKEN_SECRET".utf8)
-    static let RefreshTokenValidationLength = Date() + (60 * 60 * 24 * 30) // 30 Days Later
+    static let RefreshTokenValidationLength = Date() + Expiration.RefreshTokenExpiration // 30 Days Later
 }
 
 final class User: BaseModel, Model {
@@ -86,11 +91,13 @@ extension User: Auth.User {
                 
                 // Validate it's time stamp
                 if !receivedJWT.verifyClaims([ExpirationTimeClaim()]) {
-                    try user.generateToken()
+                    try user.generateAccessToken()
+                    try user.generateRefreshToken()
                 }
             } else {
                 // We don't have a valid access token
-                try user.generateToken()
+                try user.generateAccessToken()
+                try user.generateRefreshToken()
             }
             
             try user.save()
@@ -114,7 +121,8 @@ extension User: Auth.User {
         }
         
         if try User.query().filter("username", newUser.username).first() == nil {
-            try newUser.generateToken()
+            try newUser.generateAccessToken()
+            try newUser.generateRefreshToken()
             try newUser.save()
             return newUser
         } else {
@@ -125,25 +133,43 @@ extension User: Auth.User {
 
 // MARK: Token Generation
 extension User {
-    func generateToken() throws {
-        // Generate our Token
-        let jwt = try JWT(payload: Node(ExpirationTimeClaim(Authentication.AccesTokenValidationLength)),
+    func generateAccessToken() throws {
+        // Generate access Token
+        let expiration = ExpirationTimeClaim(Authentication.AccesTokenValidationLength)
+        let jwt = try JWT(payload: Node(expiration),
                           signer: HS256(key: Authentication.AccessTokenSigningKey))
         self.accessToken = try jwt.createToken()
     }
     
-    func validateToken() throws -> Bool {
+    func generateRefreshToken() throws {
+        // Generate refresh Token
+        let expiration = ExpirationTimeClaim(Authentication.RefreshTokenValidationLength)
+        let jwt = try JWT(payload: Node(expiration),
+                          signer: HS256(key: Authentication.RefreshTokenSigningKey))
+        self.refreshToken = try jwt.createToken()
+    }
+    
+    func validateAccessToken() throws -> Bool {
         guard let token = self.accessToken else { return false }
         // Validate our current access token
         let receivedJWT = try JWT(token: token)
         if try receivedJWT.verifySignatureWith(HS256(key: Authentication.AccessTokenSigningKey)) {
             // If we need a new token, lets generate one
             if !receivedJWT.verifyClaims([ExpirationTimeClaim()]) {
-                try self.generateToken()
+                try self.generateAccessToken()
+                try self.generateRefreshToken()
                 return true
             }
         }
         return false
+    }
+    
+    func makeTokenNode() throws -> Node {
+        return try Node(node: [
+            "refresh_token": refreshToken,
+            "access_token": accessToken,
+            "expires_in": Int(Expiration.AccesTokenExpiration)
+            ])
     }
 }
 
