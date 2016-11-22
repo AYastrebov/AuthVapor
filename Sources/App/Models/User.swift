@@ -10,8 +10,10 @@ import VaporJWT
 import Hash
 
 struct Authentication {
-    static let AccessTokenSigningKey: Bytes = Array("SUPER_SECRET_KEY".utf8)
-    static let AccesTokenValidationLength = Date() + (60 * 5) // 5 Minutes later
+    static let AccessTokenSigningKey: Bytes = Array("ACCESS_TOKEN_SECRET".utf8)
+    static let AccesTokenValidationLength = Date() + (60 * 15) // 15 Minutes later
+    static let RefreshTokenSigningKey: Bytes = Array("REFRESH_TOKEN_SECRET".utf8)
+    static let RefreshTokenValidationLength = Date() + (60 * 60 * 24 * 30) // 30 Days Later
 }
 
 final class User: BaseModel, Model {
@@ -19,6 +21,7 @@ final class User: BaseModel, Model {
     var username: String!
     var password: String!
     var accessToken: String?
+    var refreshToken: String?
     
     init(credentials: UsernamePassword) {
         self.username = credentials.username
@@ -35,6 +38,7 @@ final class User: BaseModel, Model {
         username = try node.extract("username")
         password = try node.extract("password")
         accessToken = try node.extract("access_token")
+        refreshToken = try node.extract("refresh_token")
         try super.init(node: node, in: context)
     }
     
@@ -44,6 +48,7 @@ final class User: BaseModel, Model {
             "created_on": createdOn,
             "username": username,
             "password": password,
+            "refresh_token": refreshToken,
             "access_token": accessToken,
             ])
     }
@@ -56,19 +61,21 @@ extension User: Auth.User {
         var user: User?
         
         switch credentials {
-        case let credentials as UsernamePassword:
-            let fetchedUser = try User.query().filter("username", credentials.username).first()
-            if let password = fetchedUser?.password, password != "", (try? BCrypt.verify(password: credentials.password, matchesHash: password)) == true {
-                user = fetchedUser
-            }
+            case let credentials as UsernamePassword:
+                let fetchedUser = try User.query().filter("username", credentials.username).first()
+                if let password = fetchedUser?.password, password != "",
+                    (try? BCrypt.verify(password: credentials.password, matchesHash: password)) == true {
+                    user = fetchedUser
+                }
             
-        case let credentials as Identifier: user = try User.find(credentials.id)
+            case let credentials as Identifier:
+                user = try User.find(credentials.id)
             
-        case let credentials as Auth.AccessToken:
-            user = try User.query().filter("access_token", credentials.string).first()
+            case let credentials as Auth.AccessToken:
+                user = try User.query().filter("access_token", credentials.string).first()
             
-        default:
-            throw UnsupportedCredentialsError()
+            default:
+                throw UnsupportedCredentialsError()
         }
         
         if var user = user {
@@ -99,10 +106,11 @@ extension User: Auth.User {
         var newUser: User
         
         switch credentials {
-        case let credentials as UsernamePassword:
-            newUser = User(credentials: credentials)
+            case let credentials as UsernamePassword:
+                newUser = User(credentials: credentials)
             
-        default: throw UnsupportedCredentialsError()
+            default:
+                throw UnsupportedCredentialsError()
         }
         
         if try User.query().filter("username", newUser.username).first() == nil {
@@ -112,16 +120,15 @@ extension User: Auth.User {
         } else {
             throw AccountTakenError()
         }
-        
     }
-    
 }
 
 // MARK: Token Generation
 extension User {
     func generateToken() throws {
         // Generate our Token
-        let jwt = try JWT(payload: Node(ExpirationTimeClaim(Authentication.AccesTokenValidationLength)), signer: HS256(key: Authentication.AccessTokenSigningKey))
+        let jwt = try JWT(payload: Node(ExpirationTimeClaim(Authentication.AccesTokenValidationLength)),
+                          signer: HS256(key: Authentication.AccessTokenSigningKey))
         self.accessToken = try jwt.createToken()
     }
     
@@ -140,12 +147,14 @@ extension User {
     }
 }
 
+// MARK: Preparations
 extension User: Preparation {
     static func prepare(_ database: Database) throws {
         try database.create("users") { user in
             prepare(model: user)
             user.string("username")
             user.string("password")
+            user.string("refresh_token", optional: true)
             user.string("access_token", optional: true)
         }
     }
@@ -155,11 +164,13 @@ extension User: Preparation {
     }
 }
 
+// MARK: Merge
 extension User {
     func merge(updates: User) {
         super.merge(updates: updates)
         username = updates.username
         password = updates.password
         accessToken = updates.accessToken
+        refreshToken = updates.refreshToken
     }
 }
