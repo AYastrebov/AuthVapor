@@ -175,8 +175,29 @@ extension User: Preparation {
     }
 }
 
-// MARK: Merge
+// MARK: Extensions
+
+extension Array where Element : User {
+    
+    func publicNode() throws -> Node {
+        var result: [Node] = []
+        for value in self {
+            try result.append(value.publicNode())
+        }
+        return try Node(node: result)
+    }
+}
+
 extension User {
+    
+    func publicNode() throws -> Node {
+        return try Node(node: [
+            "id": id,
+            "created_on": createdOn,
+            "username": username
+            ])
+    }
+    
     func merge(updates: User) {
         super.merge(updates: updates)
         username = updates.username

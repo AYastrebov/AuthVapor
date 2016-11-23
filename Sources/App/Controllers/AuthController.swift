@@ -20,7 +20,7 @@ final class AuthController {
             try _ = User.register(credentials: credentials)
             try request.auth.login(credentials)
             
-            return try JSON(node: Node.successNode(data: ["user": request.user().makeNode(),
+            return try JSON(node: Node.successNode(data: ["user": request.user().publicNode(),
                                                           "token": request.user().makeTokenNode()]))
         } catch let e as TurnstileError {
             throw Abort.custom(status: Status.badRequest, message: e.description)
@@ -36,7 +36,7 @@ final class AuthController {
         
         do {
             try request.auth.login(credentials)
-            return try JSON(node: Node.successNode(data: ["user": request.user().makeNode(),
+            return try JSON(node: Node.successNode(data: ["user": request.user().publicNode(),
                                                           "token": request.user().makeTokenNode()]))
         } catch _ {
             throw Abort.custom(status: Status.badRequest, message: "Invalid email or password")
