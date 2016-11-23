@@ -44,6 +44,23 @@ extension BaseModel: Equatable {
     }
 }
 
+extension Node {
+    
+    static func successNode(data: Node) throws -> Node {
+        return try Node(node: [
+            "success": true,
+            "data": data,
+            ])
+    }
+    
+    static func errorNode(error: Node) throws -> Node {
+        return try Node(node: [
+            "success": false,
+            "error": error,
+            ])
+    }
+}
+
 //func ==<T: BaseModel>(lhs: T, rhs: T) -> Bool {
 //    return lhs.id == rhs.id
 //}

@@ -20,11 +20,8 @@ final class AuthController {
             try _ = User.register(credentials: credentials)
             try request.auth.login(credentials)
             
-            return try JSON(node: [
-                "success": true,
-                "user": request.user().makeNode(),
-                "token": request.user().makeTokenNode()
-                ])
+            return try JSON(node: Node.successNode(data: ["user": request.user().makeNode(),
+                                                          "token": request.user().makeTokenNode()]))
         } catch let e as TurnstileError {
             throw Abort.custom(status: Status.badRequest, message: e.description)
         }
@@ -39,11 +36,8 @@ final class AuthController {
         
         do {
             try request.auth.login(credentials)
-            return try JSON(node: [
-                "success": true,
-                "user": request.user().makeNode(),
-                "token": request.user().makeTokenNode()
-                ])
+            return try JSON(node: Node.successNode(data: ["user": request.user().makeNode(),
+                                                          "token": request.user().makeTokenNode()]))
         } catch _ {
             throw Abort.custom(status: Status.badRequest, message: "Invalid email or password")
         }
@@ -58,13 +52,11 @@ final class AuthController {
         
         // Clear the session
         request.subject.logout()
-        return try JSON(node: ["success": true])
+        return try JSON(node: Node.successNode(data: []))
     }
     
     func refresh(request: Request) throws -> ResponseRepresentable {
         var user: User?
-        
-//        request.headers
         
         guard let refreshToken = request.data["refresh_token"]?.string else {
             throw Abort.custom(status: Status.badRequest, message: "Missing refresh_token")
@@ -78,7 +70,6 @@ final class AuthController {
             throw Abort.notFound
         }
         
-        
         if var user = user {
             
             if try refreshJWT.verifySignatureWith(HS256(key: Authentication.RefreshTokenSigningKey)) {
@@ -88,7 +79,7 @@ final class AuthController {
                     try user.generateRefreshToken()
                     try user.save()
                     
-                    return try JSON(node: user.makeTokenNode())
+                    return try JSON(node: Node.successNode(data: user.makeTokenNode()))
                     
                 } else {
                     throw Abort.custom(status: .unauthorized, message: "Refresh token expired.")
@@ -100,22 +91,5 @@ final class AuthController {
         } else {
             throw Abort.custom(status: .unauthorized, message: "Invalid refresh token.")
         }
-    }
-    
-    func validateAccessToken(request: Request) throws -> ResponseRepresentable {
-        var user = try request.user()
-        guard let _ = user.accessToken else {
-            throw Abort.badRequest
-        }
-        
-        // Check if the token is expired, or invalid and generate a new one
-        if try user.validateAccessToken() {
-            try user.save()
-        }
-        
-        return try JSON(node: [
-            "success": true,
-            "token": user.makeTokenNode()
-            ])
     }
 }

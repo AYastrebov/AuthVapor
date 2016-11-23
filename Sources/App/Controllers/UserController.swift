@@ -6,11 +6,11 @@ import VaporPostgreSQL
 final class UserController: ResourceRepresentable {
     
     func me(request: Request) throws -> ResponseRepresentable {
-        return try JSON(node: request.user().makeNode())
+        return try JSON(node: Node.successNode(data: request.user().makeNode()))
     }
     
     func index(request: Request) throws -> ResponseRepresentable {
-        return try User.all().toJSON()
+        return try JSON(node: Node.successNode(data: User.all().makeNode()))
     }
     
     func show(request: Request, user: User) throws -> ResponseRepresentable {

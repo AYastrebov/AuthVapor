@@ -10,7 +10,7 @@ import VaporJWT
 import Hash
 
 struct Expiration {
-    static let AccesTokenExpiration: TimeInterval = (60 * 5) // 15 Minutes later
+    static let AccesTokenExpiration: TimeInterval = (60 * 15) // 15 Minutes later
     static let RefreshTokenExpiration: TimeInterval = (60 * 60 * 24 * 30) // 30 Days Later
 }
 
@@ -147,21 +147,6 @@ extension User {
         let jwt = try JWT(payload: Node(expiration),
                           signer: HS256(key: Authentication.RefreshTokenSigningKey))
         self.refreshToken = try jwt.createToken()
-    }
-    
-    func validateAccessToken() throws -> Bool {
-        guard let token = self.accessToken else { return false }
-        // Validate our current access token
-        let receivedJWT = try JWT(token: token)
-        if try receivedJWT.verifySignatureWith(HS256(key: Authentication.AccessTokenSigningKey)) {
-            // If we need a new token, lets generate one
-            if !receivedJWT.verifyClaims([ExpirationTimeClaim()]) {
-                try self.generateAccessToken()
-                try self.generateRefreshToken()
-                return true
-            }
-        }
-        return false
     }
     
     func makeTokenNode() throws -> Node {
